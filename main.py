@@ -22,7 +22,10 @@ def model(data: CalcettoData):
     # latent_log2_skill[data.reference_player] = 1.0  # TODO: maybe I have to put an array
     latent_log2_skill = {
         p: pyro.sample(
-            f"latent_log2_skill_{p}", dist.Normal(loc=mu_pior, scale=sigma_pior)
+            f"latent_log2_skill_{p}",
+            dist.Normal(loc=mu_pior, scale=sigma_pior)
+            if p != "Umberto L"
+            else dist.Normal(torch.tensor(0.0), torch.tensor(1e-4)),
         )
         for p in data.get_players()
         # for p in data.players(include_reference_player=False)
@@ -40,25 +43,24 @@ def model(data: CalcettoData):
             obs=torch.tensor(m.goals_a),
         )
 
-    """
-    def guide(data: CalcettoData):
-        # register the two variational parameters with Pyro.
-        l = len(data.players())
-        mean_q = pyro.param("mean_q", torch.zeros(l))
-        cov_q = pyro.param(
-            "cov_q", torch.eye(l), constraint=constraints
-        )
-        # sample latent_fairness from the distribution Beta(alpha_q, beta_q)
-        pyro.sample("latent_fairness", dist.Beta(alpha_q, beta_q))
-        
-        dist.MultivariateNormal()
-    """
+
+"""    
+def guide(data: CalcettoData):
+    # register the two variational parameters with Pyro.
+    l = len(data.get_players())
+    mean_q = pyro.param("mean_q", torch.zeros(l))
+    cov_q = pyro.param("cov_q", torch.eye(l))
+    # sample latent_fairness from the distribution Beta(alpha_q, beta_q)
+    pyro.sample("latent_fairness", dist.MultivariateNormal(mean_q, cov_q))
+    
+    dist.MultivariateNormal()
+"""
 
 
 data = CalcettoData("dataset/log.csv")
 
 guide = AutoMultivariateNormal(model=model)
-n_steps = 10000
+n_steps = 1000
 
 
 # setup the optimizer
@@ -66,35 +68,40 @@ adam_params = {"lr": 0.001}
 optimizer = Adam(adam_params)
 
 # setup the inference algorithm
-svi = SVI(model, guide, optimizer, loss=Trace_ELBO(vectorize_particles=True, num_particles=3))
+svi = SVI(
+    model, guide, optimizer, loss=Trace_ELBO(vectorize_particles=True, num_particles=3)
+)
 
 losses = np.zeros(n_steps)
 
 # do gradient steps
 for i in range(n_steps):
     losses[i] = svi.step(data)
-    if i%100 == 0:
+    if i % 100 == 0:
         plt.plot(losses[:i])
-        plt.savefig('loss.png')
+        plt.savefig("loss.png")
         plt.close()
 
-        mean = pyro.get_param_store()['AutoMultivariateNormal.loc']
-        std = pyro.get_param_store()['AutoMultivariateNormal.scale']
-        corr = pyro.get_param_store()['AutoMultivariateNormal.scale_tril']
+        mean = pyro.get_param_store()["AutoMultivariateNormal.loc"]
+        std = pyro.get_param_store()["AutoMultivariateNormal.scale"]
+        corr = pyro.get_param_store()["AutoMultivariateNormal.scale_tril"]
 
-        stats = {p : {'median': np.exp2(mean[i].item()), 'std': std[i].item()} for i, p in enumerate(data.get_players())}
+        stats = {
+            p: {"median": np.exp2(mean[i].item()), "std": std[i].item()}
+            for i, p in enumerate(data.get_players())
+        }
 
-        print('stats: ')
+        print("stats: ")
         print(json.dumps(stats, indent=4))
 
-        print(f'{corr=}: ')
+        print(f"{corr=}: ")
 
         players = np.array(data.get_players())
         medians = np.exp2(mean.detach().numpy())
         order = np.argsort(-medians)
         y_pos = np.arange(len(mean))
-        
-        plt.barh(y = y_pos, width=medians[order])
+
+        plt.barh(y=y_pos, width=medians[order])
         plt.yticks(y_pos, labels=players[order])
-        plt.savefig('stats.png')
+        plt.savefig("stats.png")
         plt.close()
