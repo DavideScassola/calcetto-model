@@ -1,4 +1,8 @@
 pandas
+numpy
 pyro-ppl
 matplotlib
 tqdm
+seaborn
+black
+isort
