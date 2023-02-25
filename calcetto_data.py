@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 from typing import List
+
 import pandas as pd
 
 TEAM_A = "Squadra A"
@@ -34,6 +35,9 @@ class CalcettoData:
         self.df = from_notion_csv(file)
         self.__build_players_list(self.df)
         self.__build_matches_list(self.df)
+        self.player_index = {
+            name: index for index, name in enumerate(self.get_players())
+        }
 
     def __build_players_list(self, df: pd.DataFrame):
         self.players = sorted(list(set().union(*df[TEAM_A], *df[TEAM_B])))
@@ -50,7 +54,7 @@ class CalcettoData:
         self.matches = [from_df_row(r) for r in df.iloc]
 
     def get_players(self) -> list:
-        return self.players
+        return self.players + ["PRIOR"]
 
     def get_matches(self) -> List[Match]:
         return self.matches
