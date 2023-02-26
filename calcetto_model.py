@@ -6,20 +6,20 @@ import torch
 from calcetto_data import CalcettoData
 
 PRIOR = {
-    "mu_log2_skill": np.log2(70),
-    "sigma_log2_skill": 0.15,
-    "mu_log2_k": 3.0,
-    "sigma_log2_k": 2,
+    "mu_log_skill": np.log(70),
+    "sigma_log_skill": 0.1,
+    "mu_log_k": 3.0,
+    "sigma_log_k": 1.,
 }
 
 
 def model(data: CalcettoData):
-    mu_pior = torch.tensor(PRIOR["mu_log2_skill"])
-    sigma_pior = torch.tensor(PRIOR["sigma_log2_skill"])
+    mu_pior = torch.tensor(PRIOR["mu_log_skill"])
+    sigma_pior = torch.tensor(PRIOR["sigma_log_skill"])
 
     latent_skill = {
         p: pyro.sample(
-            f"latent_log2_skill_{p}",
+            f"latent_log_skill_{p}",
             dist.LogNormal(loc=mu_pior, scale=sigma_pior)
             # if p != "Umberto L"
             # else dist.LogNormal(mu_pior, torch.tensor(1e-4)),
@@ -30,8 +30,8 @@ def model(data: CalcettoData):
     k = pyro.sample(
         "k",
         dist.LogNormal(
-            loc=torch.tensor(PRIOR["mu_log2_k"]),
-            scale=torch.tensor(PRIOR["sigma_log2_k"]),
+            loc=torch.tensor(PRIOR["mu_log_k"]),
+            scale=torch.tensor(PRIOR["sigma_log_k"]),
         ),
     )
 
