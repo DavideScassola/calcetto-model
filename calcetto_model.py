@@ -9,7 +9,7 @@ PRIOR = {
     "mu_log_skill": np.log(70),
     "sigma_log_skill": 0.1,
     "mu_log_k": 3.0,
-    "sigma_log_k": 1.,
+    "sigma_log_k": 1.0,
 }
 
 
