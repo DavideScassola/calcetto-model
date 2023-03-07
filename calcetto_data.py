@@ -64,7 +64,7 @@ class CalcettoData:
     def get_matches(self) -> List[Match]:
         return self.matches
 
-    def get_player_statistics(self):
+    def get_player_statistics(self) -> pd.DataFrame():
         df = pd.DataFrame(index=self.get_players())
 
         df["GF"] = 0
