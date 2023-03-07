@@ -14,7 +14,7 @@ from scipy.stats import lognorm, norm
 from calcetto_data import CalcettoData
 from calcetto_model import model
 
-DATASET = "dataset/log3.csv"
+DATASET = "dataset/log.csv"
 
 
 def LogNormalMarginalPlots(*, loc: torch.Tensor, scale: torch.Tensor, players):
@@ -46,6 +46,8 @@ def LogNormalMarginalPlots(*, loc: torch.Tensor, scale: torch.Tensor, players):
 
 if __name__ == "__main__":
     data = CalcettoData(DATASET)
+    
+    data.get_player_statistics().to_csv('players_statistics.csv')
 
     guide = AutoMultivariateNormal(model=model)
 
