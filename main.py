@@ -47,8 +47,11 @@ def LogNormalMarginalPlots(*, loc: torch.Tensor, scale: torch.Tensor, players):
 if __name__ == "__main__":
     data = CalcettoData(DATASET)
     
-    data.get_player_statistics().to_csv('players_statistics.csv')
-
+    # creating csv of players statistics
+    df = data.get_player_statistics()
+    print(df)
+    df.to_csv('players_statistics.csv')
+    
     guide = AutoMultivariateNormal(model=model)
 
     # setup the optimizer
