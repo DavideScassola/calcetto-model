@@ -10,6 +10,16 @@ GOALS_B = "Gol B"
 RESULT = "risultato"
 
 
+def add_telegram_table_header(file: str):
+    TELEGRAM_HEADER = "```"
+    with open(file, "r+") as f:
+        content = f.read()
+        f.seek(0, 0)
+        f.write(
+            TELEGRAM_HEADER.rstrip("\r\n") + "\n" + content + "\n" + TELEGRAM_HEADER
+        )
+
+
 def from_notion_csv(file: str) -> pd.DataFrame:
     df = pd.read_csv(file)
     to_set = lambda c: c.str.split(", ").apply(set)
@@ -100,8 +110,21 @@ class CalcettoData:
                     assign_result(df.loc[p], m.result, False)
 
         df["MP"] = df["W"] + df["D"] + df["L"]
-        df["WR"] = df["W"] / df["MP"]
         df["GD"] = df["GF"] - df["GA"]
+        df["WR"] = df["W"] / df["MP"]
         df["GR"] = df["GF"] / df["GA"]
 
-        return round(df.sort_values(by="GR", ascending=False), 2)
+        if "PRIOR" in df.index:
+            df.drop("PRIOR", inplace=True)
+
+        # features = ["MP", "W", "D", "L", "GF", "GA", "GD", "WR", "GR"]
+        reduced_features = ["MP", "W", "L", "WR", "GR"]
+        return round(df.sort_values(by=["GR", "WR"], ascending=False), 2)[
+            reduced_features
+        ]
+
+    def to_markdown(self, *, telegram=False):
+        file = "stats.md"
+        self.get_player_statistics().to_markdown(file)
+        if telegram:
+            add_telegram_table_header(file)

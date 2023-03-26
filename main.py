@@ -16,6 +16,8 @@ from calcetto_model import model
 
 DATASET = "dataset/log.csv"
 
+plt.rcParams.update({"figure.autolayout": True})
+
 
 def LogNormalMarginalPlots(*, loc: torch.Tensor, scale: torch.Tensor, players):
     loc = loc.detach().numpy()
@@ -25,8 +27,8 @@ def LogNormalMarginalPlots(*, loc: torch.Tensor, scale: torch.Tensor, players):
     cols = 4
     rows = int(np.ceil(l / cols))
     fig, axes = plt.subplots(rows, cols, sharey=True)
-    fig.tight_layout()
-    fig.set_size_inches(12, 12)
+    # fig.tight_layout()
+    # fig.set_size_inches(12, 12)
 
     for i in range(l):
         ax = axes[i // cols, i % cols]
@@ -46,19 +48,17 @@ def LogNormalMarginalPlots(*, loc: torch.Tensor, scale: torch.Tensor, players):
 
 if __name__ == "__main__":
     data = CalcettoData(DATASET)
-    
+
     # creating csv of players statistics
-    df = data.get_player_statistics()
-    print(df)
-    df.to_csv('players_statistics.csv')
-    
+    data.to_markdown(telegram=True)
+
     guide = AutoMultivariateNormal(model=model)
 
     # setup the optimizer
-    opt_params = {"lr": 0.005}
+    opt_params = {"lr": 0.002}
     optimizer = Adam(opt_params)
     n_steps = 10000
-    num_particles = 20
+    num_particles = 5
 
     # setup the inference algorithm
     svi = SVI(
@@ -114,8 +114,8 @@ if __name__ == "__main__":
             order = np.argsort(-medians)
             y_pos = np.arange(len(mean))
 
-            plt.tight_layout()
-            plt.figure(figsize=(8, 6))
+            # plt.tight_layout()
+            # plt.figure(figsize=(8, 6))
 
             plt.barh(y=y_pos, width=quantiles_95[order], alpha=0.8, color="red")
             plt.barh(y=y_pos, width=medians[order], alpha=0.8, color="blue")
@@ -124,7 +124,7 @@ if __name__ == "__main__":
             plt.yticks(y_pos, labels=players[order])
             plt.xlim(np.min(quantiles_05) / 1.01, np.max(quantiles_95) * 1.01)
             plt.grid(alpha=0.8)
-            plt.gca().xaxis.set_major_locator(plt.MultipleLocator(5))
+            # plt.gca().xaxis.set_major_locator(plt.MultipleLocator(5))
             plt.savefig("stats.png")
             plt.close()
 
@@ -134,7 +134,7 @@ if __name__ == "__main__":
                 corr_for_plot = np.round(corr.detach().numpy(), 2)
                 corr_for_plot += corr_for_plot.T
                 np.fill_diagonal(corr_for_plot, np.nan)
-                plt.tight_layout()
+                # plt.tight_layout()
                 plt.figure(figsize=(12, 10))
                 sns.heatmap(
                     pd.DataFrame(corr_for_plot, index=players, columns=players),

@@ -9,7 +9,7 @@ PRIOR = {
     "mu_log_skill": np.log(70),
     "sigma_log_skill": 0.1,
     "mu_log_k": 3.0,
-    "sigma_log_k": 1.0,
+    "sigma_log_k": 2.0,
 }
 
 
@@ -19,7 +19,7 @@ def model(data: CalcettoData):
 
     latent_skill = {
         p: pyro.sample(
-            f"latent_log_skill_{p}",
+            f"latent_skill_{p}",
             dist.LogNormal(loc=mu_pior, scale=sigma_pior)
             # if p != "Umberto L"
             # else dist.LogNormal(mu_pior, torch.tensor(1e-4)),
