@@ -7,3 +7,4 @@ seaborn
 black
 isort
 tabulate
+scipy

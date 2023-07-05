@@ -43,6 +43,8 @@ class Match:
     def valid(self) -> int:
         return self.result != "Nulla"
 
+def get_winner(*, goals_a, goals_b):
+    return 'A' if goals_a>goals_b else ('B' if goals_a<goals_b else 'Pareggio')
 
 class CalcettoData:
     def __init__(self, file: str) -> None:
@@ -83,35 +85,37 @@ class CalcettoData:
         df["D"] = 0
         df["L"] = 0
 
-        def assign_result(player: str, result: str, team_a: bool):
+        def assign_result(dataframe: pd.DataFrame, player: str, result: str, team_a: bool):
             if result == "A":
                 if team_a:
-                    player["W"] += 1
+                    dataframe["W"][player] += 1
                 else:
-                    player["L"] += 1
+                    dataframe["L"][player] += 1
             if result == "B":
                 if team_a:
-                    player["L"] += 1
+                    dataframe["L"][player] += 1
                 else:
-                    player["W"] += 1
-            if result == "D":
-                player["D"] += 1
+                    dataframe["W"][player] += 1
+            if result == "Pareggio":
+                dataframe["D"][player] += 1
 
         for m in self.matches:
             if m.valid():
+                winner = get_winner(goals_a=m.goals_a, goals_b=m.goals_b)
+                assert winner==m.result, "Risultato non coerente, correggi i dati"
                 for p in m.team_a:
-                    df.loc[p]["GF"] += m.goals_a
-                    df.loc[p]["GA"] += m.goals_b
-                    assign_result(df.loc[p], m.result, True)
+                    df["GF"][p] += m.goals_a
+                    df["GA"][p] += m.goals_b
+                    assign_result(df, p, winner, True)
 
                 for p in m.team_b:
-                    df.loc[p]["GF"] += m.goals_b
-                    df.loc[p]["GA"] += m.goals_a
-                    assign_result(df.loc[p], m.result, False)
+                    df["GF"][p] += m.goals_b
+                    df["GA"][p] += m.goals_a
+                    assign_result(df, p, winner, True)
 
         df["MP"] = df["W"] + df["D"] + df["L"]
         df["GD"] = df["GF"] - df["GA"]
-        df["WR"] = df["W"] / df["MP"]
+        df["WR"] = df["W"] / (df["W"] + df["L"])
         df["GR"] = df["GF"] / df["GA"]
 
         if "PRIOR" in df.index:
@@ -119,7 +123,7 @@ class CalcettoData:
 
         # features = ["MP", "W", "D", "L", "GF", "GA", "GD", "WR", "GR"]
         reduced_features = ["MP", "W", "L", "WR", "GR"]
-        return round(df.sort_values(by=["GR", "WR"], ascending=False), 2)[
+        return round(df.sort_values(by=["WR", "GR"], ascending=False), 2)[
             reduced_features
         ]
 
