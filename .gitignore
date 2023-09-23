@@ -2,5 +2,6 @@
 dataset
 __pycache__
 notion_token.txt
+results
 *.png
 *.svg

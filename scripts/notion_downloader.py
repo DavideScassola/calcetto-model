@@ -1,9 +1,9 @@
 # Initialisation
 import json
+import os
 
 import pandas as pd
 import requests
-import os
 
 DATABASE_URL = "https://www.notion.so/6a006d0f698a476eb4bcd18d22e653b5?v=822e48882f7e4421be4c66d04bdb86b0"
 NOTION_TOKEN_FILE = "notion_token.txt"
@@ -31,7 +31,7 @@ def readDatabase(databaseID, headers, to_json=False):
         with open("./full-properties.json", "w", encoding="utf8") as f:
             json.dump(data, f, ensure_ascii=False)
         return data
-    
+
     return res.json()
 
 

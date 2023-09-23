@@ -9,3 +9,7 @@ install:
 format:
 	black .
 	isort .
+
+.PHONY: clear_results
+clear_results:
+	rm -r results/*

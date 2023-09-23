@@ -131,8 +131,8 @@ class CalcettoData:
             reduced_features
         ]
 
-    def to_markdown(self, *, telegram=False):
-        file = "stats.md"
+    def to_markdown(self, *, telegram=False, path="."):
+        file = path + "/stats.md"
         self.get_player_statistics().to_markdown(file)
         if telegram:
             add_telegram_table_header(file)

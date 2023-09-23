@@ -1,4 +1,5 @@
 import json
+import os
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -11,45 +12,24 @@ from pyro.infer.autoguide.guides import AutoMultivariateNormal
 from pyro.optim import SGD, Adam
 from scipy.stats import lognorm, norm
 
-from calcetto_data import CalcettoData
-from calcetto_model import model
+from src.calcetto_data import CalcettoData
+from src.calcetto_model import INCLUDE_K, model
 
 DATASET = "dataset/log.csv"
+RESULTS_FOLDER = "results/"
+IMAGE_TYPE = "png"
+SHOW_EXP = False
 
 plt.rcParams.update({"figure.autolayout": True})
-
-
-def LogNormalMarginalPlots(*, loc: torch.Tensor, scale: torch.Tensor, players):
-    loc = loc.detach().numpy()
-    scale = scale.detach().numpy()
-    l = len(loc)
-    cols = 4
-    rows = int(np.ceil(l / cols))
-    fig, axes = plt.subplots(rows, cols, sharey=True)
-    # fig.tight_layout()
-    # fig.set_size_inches(12, 12)
-
-    for i in range(l):
-        ax = axes[i // cols, i % cols]
-
-        d = lognorm(scale[i])
-        alpha = 0.01
-        min_x = d.ppf(alpha)
-        max_x = d.ppf(1 - alpha)
-        x = np.linspace(min_x, max_x, 200)
-        ax.plot(x * np.exp(loc[i]), d.pdf(x=x))
-        ax.set_title(players[i])
-        # ax.set_xlim(50, 100)
-
-    plt.savefig("distributions.png")
-    plt.close()
 
 
 if __name__ == "__main__":
     data = CalcettoData(DATASET)
 
+    os.makedirs(RESULTS_FOLDER, exist_ok=True)
+
     # creating csv of players statistics
-    data.to_markdown(telegram=True)
+    data.to_markdown(telegram=True, path=RESULTS_FOLDER)
 
     guide = AutoMultivariateNormal(model=model)
 
@@ -76,32 +56,40 @@ if __name__ == "__main__":
 
         if i % 100 == 0:
             plt.plot(np.log2(losses[:i]))
-            plt.savefig("log2_loss.png")
+            plt.savefig(RESULTS_FOLDER + f"log2_loss.{IMAGE_TYPE}")
             plt.close()
 
-            mean = pyro.get_param_store()["AutoMultivariateNormal.loc"][:-1]
-            std = pyro.get_param_store()["AutoMultivariateNormal.scale"][:-1]
-            corr = pyro.get_param_store()["AutoMultivariateNormal.scale_tril"][:-1, :-1]
+            skills_slice = slice(None, -1) if INCLUDE_K else slice(None, None)
 
-            k_mean = pyro.get_param_store()["AutoMultivariateNormal.loc"][-1]
-            k_std = pyro.get_param_store()["AutoMultivariateNormal.scale"][-1]
+            mean = pyro.get_param_store()["AutoMultivariateNormal.loc"][skills_slice]
+            std = pyro.get_param_store()["AutoMultivariateNormal.scale"][skills_slice]
+            corr = pyro.get_param_store()["AutoMultivariateNormal.scale_tril"][
+                skills_slice, skills_slice
+            ]
+
+            if INCLUDE_K:
+                k_mean = pyro.get_param_store()["AutoMultivariateNormal.loc"][-1]
+                k_std = pyro.get_param_store()["AutoMultivariateNormal.scale"][-1]
+
+            f = np.exp if SHOW_EXP else lambda x: x
 
             stats = {
-                p: {"median": np.exp(mean[i].item()), "std": std[i].item()}
+                p: {"median": f(mean[i].item()), "std": std[i].item()}
                 for i, p in enumerate(data.get_players())
             }
 
-            stats["k"] = {"median": np.exp(k_mean.item()), "std": k_std.item()}
+            if INCLUDE_K:
+                stats["k"] = {"median": k_mean.item(), "std": k_std.item()}
 
-            print("stats: ")
-            print(json.dumps(stats, indent=4))
+            # print("stats: ")
+            # print(json.dumps(stats, indent=4))
 
             print(f"{corr=}: ")
 
             players = np.array(data.get_players())
-            medians = np.exp(mean.detach().numpy())
-            quantiles_05 = np.exp(norm(mean.detach(), std.detach()).ppf(0.05))
-            quantiles_95 = np.exp(norm(mean.detach(), std.detach()).ppf(0.95))
+            medians = f(mean.detach().numpy())
+            quantiles_05 = f(norm(mean.detach(), std.detach()).ppf(0.05))
+            quantiles_95 = f(norm(mean.detach(), std.detach()).ppf(0.95))
 
             # aestetic_rescale = 80 / np.max(medians)
             aestetic_rescale = 1
@@ -111,9 +99,6 @@ if __name__ == "__main__":
             quantiles_95 *= aestetic_rescale
 
             order = np.argsort(-medians)
-
-            # plt.tight_layout()
-            # plt.figure(figsize=(8, 6))
 
             """            
             players = pd.Series(players[order])
@@ -148,7 +133,7 @@ if __name__ == "__main__":
             plt.xlim(np.min(quantiles_05) / 1.01, np.max(quantiles_95) * 1.01)
             plt.grid(alpha=0.8)
             # plt.gca().xaxis.set_major_locator(plt.MultipleLocator(5))
-            plt.savefig("stats.svg")
+            plt.savefig(RESULTS_FOLDER + f"stats.{IMAGE_TYPE}")
             plt.close()
 
             if i % 200 == 0:
@@ -165,5 +150,5 @@ if __name__ == "__main__":
                     cmap=sns.color_palette("coolwarm", as_cmap=True),
                     alpha=0.8,
                 )
-                plt.savefig("corr.svg")
+                plt.savefig(RESULTS_FOLDER + f"corr.{IMAGE_TYPE}")
                 plt.close()
