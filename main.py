@@ -22,7 +22,6 @@ plt.rcParams.update({"figure.autolayout": True})
 def LogNormalMarginalPlots(*, loc: torch.Tensor, scale: torch.Tensor, players):
     loc = loc.detach().numpy()
     scale = scale.detach().numpy()
-
     l = len(loc)
     cols = 4
     rows = int(np.ceil(l / cols))
@@ -112,24 +111,48 @@ if __name__ == "__main__":
             quantiles_95 *= aestetic_rescale
 
             order = np.argsort(-medians)
-            y_pos = np.arange(len(mean))
 
             # plt.tight_layout()
             # plt.figure(figsize=(8, 6))
 
-            plt.barh(y=y_pos, width=quantiles_95[order], alpha=0.8, color="red")
-            plt.barh(y=y_pos, width=medians[order], alpha=0.8, color="blue")
-            plt.barh(y=y_pos, width=quantiles_05[order], alpha=0.8, color="#FFFFFF")
+            """            
+            players = pd.Series(players[order])
+            
+            print(players)
+            print(p)
+            order = list(filter(lambda i: p[i] or , order))
+            #players = (data.get_player_statistics()[players, "MP"] >= 3).index
+            filter()"""
 
-            plt.yticks(y_pos, labels=players[order])
+            skill_df = pd.DataFrame(
+                {
+                    "q95": quantiles_95[order],
+                    "q05": quantiles_05[order],
+                    "medians": medians[order],
+                },
+                index=players[order],
+            )
+
+            mp = data.get_player_statistics()["MP"] >= 3
+            mp["PRIOR"] = True
+            mask = [p for p in skill_df.index if mp[p]]
+            skill_df = skill_df.loc[mask]
+
+            y_pos = np.arange(len(skill_df))
+
+            plt.barh(y=y_pos, width=skill_df["q95"], alpha=0.8, color="red")
+            plt.barh(y=y_pos, width=skill_df["medians"], alpha=0.8, color="blue")
+            plt.barh(y=y_pos, width=skill_df["q05"], alpha=0.8, color="#FFFFFF")
+
+            plt.yticks(y_pos, labels=skill_df.index)
             plt.xlim(np.min(quantiles_05) / 1.01, np.max(quantiles_95) * 1.01)
             plt.grid(alpha=0.8)
             # plt.gca().xaxis.set_major_locator(plt.MultipleLocator(5))
-            plt.savefig("stats.png")
+            plt.savefig("stats.svg")
             plt.close()
 
             if i % 200 == 0:
-                LogNormalMarginalPlots(loc=mean, scale=std, players=players)
+                # LogNormalMarginalPlots(loc=mean, scale=std, players=players)
 
                 corr_for_plot = np.round(corr.detach().numpy(), 2)
                 corr_for_plot += corr_for_plot.T
@@ -142,5 +165,5 @@ if __name__ == "__main__":
                     cmap=sns.color_palette("coolwarm", as_cmap=True),
                     alpha=0.8,
                 )
-                plt.savefig("corr.png")
+                plt.savefig("corr.svg")
                 plt.close()

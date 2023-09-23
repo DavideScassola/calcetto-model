@@ -43,8 +43,10 @@ class Match:
     def valid(self) -> int:
         return self.result != "Nulla"
 
+
 def get_winner(*, goals_a, goals_b):
-    return 'A' if goals_a>goals_b else ('B' if goals_a<goals_b else 'Pareggio')
+    return "A" if goals_a > goals_b else ("B" if goals_a < goals_b else "Pareggio")
+
 
 class CalcettoData:
     def __init__(self, file: str) -> None:
@@ -85,7 +87,9 @@ class CalcettoData:
         df["D"] = 0
         df["L"] = 0
 
-        def assign_result(dataframe: pd.DataFrame, player: str, result: str, team_a: bool):
+        def assign_result(
+            dataframe: pd.DataFrame, player: str, result: str, team_a: bool
+        ):
             if result == "A":
                 if team_a:
                     dataframe["W"][player] += 1
@@ -102,7 +106,7 @@ class CalcettoData:
         for m in self.matches:
             if m.valid():
                 winner = get_winner(goals_a=m.goals_a, goals_b=m.goals_b)
-                assert winner==m.result, "Risultato non coerente, correggi i dati"
+                assert winner == m.result, "Risultato non coerente, correggi i dati"
                 for p in m.team_a:
                     df["GF"][p] += m.goals_a
                     df["GA"][p] += m.goals_b
@@ -111,7 +115,7 @@ class CalcettoData:
                 for p in m.team_b:
                     df["GF"][p] += m.goals_b
                     df["GA"][p] += m.goals_a
-                    assign_result(df, p, winner, True)
+                    assign_result(df, p, winner, False)
 
         df["MP"] = df["W"] + df["D"] + df["L"]
         df["GD"] = df["GF"] - df["GA"]

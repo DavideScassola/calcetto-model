@@ -8,3 +8,4 @@ black
 isort
 tabulate
 scipy
+requests

@@ -6,7 +6,7 @@ import torch
 from calcetto_data import CalcettoData
 
 PRIOR = {
-    "mu_log_skill": np.log(70),
+    "mu_log_skill": np.log(1.0),
     "sigma_log_skill": 0.1,
     "mu_log_k": 3.0,
     "sigma_log_k": 2.0,
@@ -18,21 +18,25 @@ def model(data: CalcettoData):
     sigma_pior = torch.tensor(PRIOR["sigma_log_skill"])
 
     latent_skill = {
-        p: pyro.sample(
-            f"latent_skill_{p}",
-            dist.LogNormal(loc=mu_pior, scale=sigma_pior)
-            # if p != "Umberto L"
-            # else dist.LogNormal(mu_pior, torch.tensor(1e-4)),
+        p: torch.exp(
+            pyro.sample(
+                f"latent_log_skill_{p}",
+                dist.Normal(loc=mu_pior, scale=sigma_pior)
+                # if p != "Umberto L"
+                # else dist.LogNormal(mu_pior, torch.tensor(1e-4)),
+            )
         )
         for p in data.get_players()
     }
 
-    k = pyro.sample(
-        "k",
-        dist.LogNormal(
-            loc=torch.tensor(PRIOR["mu_log_k"]),
-            scale=torch.tensor(PRIOR["sigma_log_k"]),
-        ),
+    k = torch.exp(
+        pyro.sample(
+            "log_k",
+            dist.Normal(
+                loc=torch.tensor(PRIOR["mu_log_k"]),
+                scale=torch.tensor(PRIOR["sigma_log_k"]),
+            ),
+        )
     )
 
     for i, m in enumerate(data.get_matches()):

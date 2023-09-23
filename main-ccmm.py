@@ -44,7 +44,7 @@ if __name__ == "__main__":
     # setup the optimizer
     hmm_step_size = 0.0855
     hmm_num_steps = 4
-    num_samples = 40000
+    num_samples = 4000
     warmup_steps = num_samples // 10
 
     # setup the inference algorithm
@@ -57,9 +57,9 @@ if __name__ == "__main__":
 
     # Plots
     samples = pd.DataFrame(samples)
-    k_samples = samples["k"]
-    players_samples = samples.drop("k", axis=1)
-    players_samples.columns = players_samples.columns.str.lstrip("latent_skill_")
+    k_samples = samples["log_k"]
+    players_samples = samples.drop("log_k", axis=1)
+    players_samples.columns = players_samples.columns.str.lstrip("latent_log_skill_")
 
     # plotting k distribution
     sns.histplot(k_samples)
