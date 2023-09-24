@@ -127,7 +127,7 @@ if __name__ == "__main__":
     # do gradient steps
     for i in range(n_steps):
         losses[i] = svi.step(data)
-        print(losses[i])
+        print("ELBO: ", losses[i])
 
         if i % 100 == 0:
             loss_plot(
