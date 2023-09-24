@@ -10,8 +10,8 @@ from pyro.infer.autoguide.guides import AutoMultivariateNormal
 from pyro.optim import SGD, Adam
 from scipy.stats import lognorm, norm
 
-from calcetto_data import CalcettoData
-from calcetto_model import model
+from src.calcetto_data import CalcettoData
+from src.calcetto_model import INCLUDE_K, model
 
 DATASET = "dataset/log.csv"
 
@@ -44,7 +44,7 @@ if __name__ == "__main__":
     # setup the optimizer
     hmm_step_size = 0.0855
     hmm_num_steps = 4
-    num_samples = 4000
+    num_samples = 6000
     warmup_steps = num_samples // 10
 
     # setup the inference algorithm
@@ -57,14 +57,19 @@ if __name__ == "__main__":
 
     # Plots
     samples = pd.DataFrame(samples)
-    k_samples = samples["log_k"]
-    players_samples = samples.drop("log_k", axis=1)
-    players_samples.columns = players_samples.columns.str.lstrip("latent_log_skill_")
 
-    # plotting k distribution
-    sns.histplot(k_samples)
-    plt.savefig("k.png")
-    plt.close()
+    if INCLUDE_K:
+        k_samples = samples["log_k"]
+        players_samples = samples.drop("log_k", axis=1)
+
+        # plotting k distribution
+        sns.histplot(k_samples)
+        plt.savefig("k.png")
+        plt.close()
+    else:
+        players_samples = samples
+
+    players_samples.columns = players_samples.columns.str.lstrip("skill_")
 
     # plotting marginals
     sorted_columns = players_samples.median().sort_values().index

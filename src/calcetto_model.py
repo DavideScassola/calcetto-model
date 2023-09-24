@@ -5,14 +5,16 @@ import torch
 
 from .calcetto_data import CalcettoData
 
+DEFAULT_K = 5.0
+INCLUDE_K = False
+MODEL_VICTORY = False
+MODEL_GOALS = True
 PRIOR = {
     "mu_skill": 6.0,
-    "sigma_skill": 1.0,
-    "loc_log_k": 3.0,
-    "scale_log_k": 2.0,
+    "sigma_skill": 1,
+    "loc_log_k": 0.0,
+    "scale_log_k": 3.0,
 }
-
-INCLUDE_K = False
 
 
 def model(data: CalcettoData):
@@ -26,12 +28,14 @@ def model(data: CalcettoData):
 
     k = 1.0
     if INCLUDE_K:
-        k = pyro.sample(
-            "k",
-            dist.LogNormal(
-                loc=torch.tensor(PRIOR["loc_log_k"]),
-                scale=torch.tensor(PRIOR["scale_log_k"]),
-            ),
+        k = torch.exp(
+            pyro.sample(
+                "log_k",
+                dist.Normal(
+                    loc=torch.tensor(PRIOR["loc_log_k"]),
+                    scale=torch.tensor(PRIOR["scale_log_k"]),
+                ),
+            )
         )
 
     for i, m in enumerate(data.get_matches()):
@@ -42,8 +46,22 @@ def model(data: CalcettoData):
         if INCLUDE_K:
             logits_A *= k
 
-        pyro.sample(
-            name=f"match_{i+1}",
-            fn=dist.Binomial(total_count=m.goals_a + m.goals_b, logits=logits_A),
-            obs=torch.tensor(m.goals_a),
-        )
+        logits_A *= DEFAULT_K
+
+        if MODEL_GOALS:
+            pyro.sample(
+                name=f"match_{i+1}",
+                fn=dist.Binomial(total_count=m.goals_a + m.goals_b, logits=logits_A),
+                obs=torch.tensor(m.goals_a),
+            )
+
+        if MODEL_VICTORY:
+            pyro.sample(
+                name=f"match_{i+1}_winner",
+                fn=dist.ContinuousBernoulli(logits=logits_A),
+                obs=torch.tensor(
+                    1.0
+                    if m.goals_a > m.goals_b
+                    else (0.5 if m.goals_a == m.goals_b else 0.0)
+                ),
+            )

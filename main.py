@@ -9,11 +9,12 @@ import seaborn as sns
 import torch
 from pyro.infer import SVI, Trace_ELBO
 from pyro.infer.autoguide.guides import AutoMultivariateNormal
-from pyro.optim import SGD, Adam
+from pyro.optim import SGD, RAdam
 from scipy.stats import lognorm, norm
 
 from src.calcetto_data import CalcettoData
 from src.calcetto_model import INCLUDE_K, model
+from src.util import store_json
 
 DATASET = "dataset/log.csv"
 RESULTS_FOLDER = "results/"
@@ -21,6 +22,80 @@ IMAGE_TYPE = "png"
 SHOW_EXP = False
 
 plt.rcParams.update({"figure.autolayout": True})
+
+
+def loss_plot(losses, *, path, log=False):
+    y = losses if not log else np.log2(losses)
+    plt.plot(y)
+    plt.savefig(RESULTS_FOLDER + f"{'log2_' if log else ''}loss.{IMAGE_TYPE}")
+    plt.close()
+
+
+def correlations_plot(corr, data, mp_minimum=4):
+    players = np.array(data.get_players())
+    corr_for_plot = np.round(corr.detach().numpy(), 2)
+    corr_for_plot += corr_for_plot.T
+    np.fill_diagonal(corr_for_plot, np.nan)
+    # plt.tight_layout()
+    plt.figure(figsize=(12, 10))
+
+    p_mask = data.get_player_statistics()["MP"] >= mp_minimum
+    p_mask["PRIOR"] = False
+
+    df = pd.DataFrame(corr_for_plot, index=players, columns=players).loc[p_mask, p_mask]
+    ax = sns.heatmap(
+        df,
+        annot=False,
+        cmap=sns.color_palette("coolwarm", as_cmap=True),
+        alpha=1.0,
+        vmin=-1.0,
+        vmax=1.0,
+    )
+    plt.savefig(RESULTS_FOLDER + f"corr.{IMAGE_TYPE}")
+    plt.close()
+
+
+def marginal_skills_plot(data, mean, std, f, mp_minimum=4):
+    players = np.array(data.get_players())
+    medians = f(mean.detach().numpy())
+    quantiles_05 = f(norm(mean.detach(), std.detach()).ppf(0.05))
+    quantiles_95 = f(norm(mean.detach(), std.detach()).ppf(0.95))
+
+    # aestetic_rescale = 80 / np.max(medians)
+    aestetic_rescale = 1
+
+    medians *= aestetic_rescale
+    quantiles_05 *= aestetic_rescale
+    quantiles_95 *= aestetic_rescale
+
+    order = np.argsort(-medians)
+
+    skill_df = pd.DataFrame(
+        {
+            "q95": quantiles_95[order],
+            "q05": quantiles_05[order],
+            "medians": medians[order],
+        },
+        index=players[order],
+    )
+
+    mp = data.get_player_statistics()["MP"] >= mp_minimum
+    mp["PRIOR"] = True
+    mask = [p for p in skill_df.index if mp[p]]
+    skill_df = skill_df.loc[mask]
+
+    y_pos = np.arange(len(skill_df))
+
+    plt.barh(y=y_pos, width=skill_df["q95"], alpha=0.8, color="red")
+    plt.barh(y=y_pos, width=skill_df["medians"], alpha=0.8, color="blue")
+    plt.barh(y=y_pos, width=skill_df["q05"], alpha=0.8, color="#FFFFFF")
+
+    plt.yticks(y_pos, labels=skill_df.index)
+    plt.xlim(np.min(quantiles_05) / 1.01, np.max(quantiles_95) * 1.01)
+    plt.grid(alpha=0.8)
+    # plt.gca().xaxis.set_major_locator(plt.MultipleLocator(5))
+    plt.savefig(RESULTS_FOLDER + f"stats.{IMAGE_TYPE}")
+    plt.close()
 
 
 if __name__ == "__main__":
@@ -34,10 +109,10 @@ if __name__ == "__main__":
     guide = AutoMultivariateNormal(model=model)
 
     # setup the optimizer
-    opt_params = {"lr": 0.002}
-    optimizer = Adam(opt_params)
+    opt_params = {"lr": 0.01}
+    optimizer = RAdam(opt_params)
     n_steps = 10000
-    num_particles = 5
+    num_particles = 10
 
     # setup the inference algorithm
     svi = SVI(
@@ -55,9 +130,9 @@ if __name__ == "__main__":
         print(losses[i])
 
         if i % 100 == 0:
-            plt.plot(np.log2(losses[:i]))
-            plt.savefig(RESULTS_FOLDER + f"log2_loss.{IMAGE_TYPE}")
-            plt.close()
+            loss_plot(
+                losses=losses[:i], path=RESULTS_FOLDER + f"loss.{IMAGE_TYPE}", log=False
+            )
 
             skills_slice = slice(None, -1) if INCLUDE_K else slice(None, None)
 
@@ -79,76 +154,13 @@ if __name__ == "__main__":
             }
 
             if INCLUDE_K:
-                stats["k"] = {"median": k_mean.item(), "std": k_std.item()}
+                stats["k"] = {
+                    "median(k)": np.exp(k_mean.item()),
+                    "std(log_k)": k_std.item(),
+                }
+                store_json(stats["k"], file=RESULTS_FOLDER + "k.json")
 
-            # print("stats: ")
-            # print(json.dumps(stats, indent=4))
-
-            print(f"{corr=}: ")
-
-            players = np.array(data.get_players())
-            medians = f(mean.detach().numpy())
-            quantiles_05 = f(norm(mean.detach(), std.detach()).ppf(0.05))
-            quantiles_95 = f(norm(mean.detach(), std.detach()).ppf(0.95))
-
-            # aestetic_rescale = 80 / np.max(medians)
-            aestetic_rescale = 1
-
-            medians *= aestetic_rescale
-            quantiles_05 *= aestetic_rescale
-            quantiles_95 *= aestetic_rescale
-
-            order = np.argsort(-medians)
-
-            """            
-            players = pd.Series(players[order])
-            
-            print(players)
-            print(p)
-            order = list(filter(lambda i: p[i] or , order))
-            #players = (data.get_player_statistics()[players, "MP"] >= 3).index
-            filter()"""
-
-            skill_df = pd.DataFrame(
-                {
-                    "q95": quantiles_95[order],
-                    "q05": quantiles_05[order],
-                    "medians": medians[order],
-                },
-                index=players[order],
-            )
-
-            mp = data.get_player_statistics()["MP"] >= 3
-            mp["PRIOR"] = True
-            mask = [p for p in skill_df.index if mp[p]]
-            skill_df = skill_df.loc[mask]
-
-            y_pos = np.arange(len(skill_df))
-
-            plt.barh(y=y_pos, width=skill_df["q95"], alpha=0.8, color="red")
-            plt.barh(y=y_pos, width=skill_df["medians"], alpha=0.8, color="blue")
-            plt.barh(y=y_pos, width=skill_df["q05"], alpha=0.8, color="#FFFFFF")
-
-            plt.yticks(y_pos, labels=skill_df.index)
-            plt.xlim(np.min(quantiles_05) / 1.01, np.max(quantiles_95) * 1.01)
-            plt.grid(alpha=0.8)
-            # plt.gca().xaxis.set_major_locator(plt.MultipleLocator(5))
-            plt.savefig(RESULTS_FOLDER + f"stats.{IMAGE_TYPE}")
-            plt.close()
+            marginal_skills_plot(data, mean, std, f)
 
             if i % 200 == 0:
-                # LogNormalMarginalPlots(loc=mean, scale=std, players=players)
-
-                corr_for_plot = np.round(corr.detach().numpy(), 2)
-                corr_for_plot += corr_for_plot.T
-                np.fill_diagonal(corr_for_plot, np.nan)
-                # plt.tight_layout()
-                plt.figure(figsize=(12, 10))
-                sns.heatmap(
-                    pd.DataFrame(corr_for_plot, index=players, columns=players),
-                    annot=False,
-                    cmap=sns.color_palette("coolwarm", as_cmap=True),
-                    alpha=0.8,
-                )
-                plt.savefig(RESULTS_FOLDER + f"corr.{IMAGE_TYPE}")
-                plt.close()
+                correlations_plot(corr, data)
