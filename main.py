@@ -16,7 +16,7 @@ from src.calcetto_data import CalcettoData
 from src.calcetto_model import INCLUDE_K, model
 from src.util import store_json
 
-DATASET = "dataset/log.csv"
+DATASET = "dataset/log.csv" if os.path.exists("dataset/log.csv") else "dataset_example/log.csv"
 RESULTS_FOLDER = "results/"
 IMAGE_TYPE = "png"
 SHOW_EXP = False
