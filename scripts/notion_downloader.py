@@ -5,8 +5,8 @@ import os
 import pandas as pd
 import requests
 
-DATABASE_URL = "https://www.notion.so/6a006d0f698a476eb4bcd18d22e653b5?v=822e48882f7e4421be4c66d04bdb86b0"
 NOTION_TOKEN_FILE = "notion_token.txt"
+DATABASE_URL_FILE = "notion_link.txt"
 CSV_TARGET = "dataset/log.csv"
 
 
@@ -59,7 +59,7 @@ def notion_json_to_df(d: dict) -> pd.DataFrame:
 
 
 if __name__ == "__main__":
-    databaseID = get_database_id(DATABASE_URL)
+    databaseID = get_database_id(next(open(DATABASE_URL_FILE)).strip())
     token = next(open(NOTION_TOKEN_FILE)).strip()
     headers = {
         "Authorization": "Bearer " + token,

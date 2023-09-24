@@ -2,6 +2,7 @@
 dataset
 __pycache__
 notion_token.txt
+notion_link.txt
 results
 *.png
 *.svg
