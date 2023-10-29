@@ -16,7 +16,11 @@ from src.calcetto_data import CalcettoData
 from src.calcetto_model import INCLUDE_K, model
 from src.util import store_json
 
-DATASET = "dataset/log.csv" if os.path.exists("dataset/log.csv") else "dataset_example/log.csv"
+DATASET = (
+    "dataset/log.csv"
+    if os.path.exists("dataset/log.csv")
+    else "dataset_example/log.csv"
+)
 RESULTS_FOLDER = "results/"
 IMAGE_TYPE = "png"
 SHOW_EXP = False
@@ -55,7 +59,7 @@ def correlations_plot(corr, data, mp_minimum=4):
     plt.close()
 
 
-def marginal_skills_plot(data, mean, std, f, mp_minimum=4):
+def marginal_skills_plot(data, mean, std, f, mp_minimum=3):
     players = np.array(data.get_players())
     medians = f(mean.detach().numpy())
     quantiles_05 = f(norm(mean.detach(), std.detach()).ppf(0.05))
@@ -97,6 +101,12 @@ def marginal_skills_plot(data, mean, std, f, mp_minimum=4):
     plt.savefig(RESULTS_FOLDER + f"stats.{IMAGE_TYPE}")
     plt.close()
 
+def store_posterior(players, mean, std, corr):
+    posterior = {'players': players,
+                 'mean': mean.detach().numpy(),
+                 'std': std.detach().numpy(),
+                 'corr': corr.detach().numpy()}
+    np.save(RESULTS_FOLDER + 'posterior.npy', posterior)
 
 if __name__ == "__main__":
     data = CalcettoData(DATASET)
@@ -109,7 +119,7 @@ if __name__ == "__main__":
     guide = AutoMultivariateNormal(model=model)
 
     # setup the optimizer
-    opt_params = {"lr": 0.01}
+    opt_params = {"lr": 0.002}
     optimizer = RAdam(opt_params)
     n_steps = 10000
     num_particles = 10
@@ -161,6 +171,8 @@ if __name__ == "__main__":
                 store_json(stats["k"], file=RESULTS_FOLDER + "k.json")
 
             marginal_skills_plot(data, mean, std, f)
+            
+            store_posterior(data.get_players(), mean, std, corr)
 
             if i % 200 == 0:
                 correlations_plot(corr, data)
