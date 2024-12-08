@@ -1,5 +1,5 @@
 venv:
-		python3.10 -m venv venv
+		python3 -m venv .venv
 
 .PHONY: install
 install:
@@ -8,6 +8,7 @@ install:
 .PHONY: format
 format:
 	black .
+	autoflake --remove-all-unused-imports --recursive --remove-unused-variables --in-place .
 	isort .
 
 .PHONY: clear_results

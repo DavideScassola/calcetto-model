@@ -1,4 +1,5 @@
 import argparse
+import random
 from functools import partial
 from typing import Callable
 
@@ -81,7 +82,7 @@ def similar_couples_criterion(
 
 
 def similar_couples_and_balance_criterion(
-    players: list | pd.Series, partitions: np.ndarray, balance_weight=0.2
+    players: list | pd.Series, partitions: np.ndarray, balance_weight=0.5
 ) -> np.ndarray:
     return (1 - balance_weight) * similar_couples_criterion(
         players, partitions
@@ -133,9 +134,14 @@ def generate_partitions(n: int) -> np.ndarray:
     return p == 1
 
 
-def optimize_team(players: list, criterion: Callable) -> pd.Series:
+def optimize_team(players: list, criterion: Callable, randomize=True) -> pd.Series:
     partitions = generate_partitions(len(players))
-    optimal_partition_index = np.argsort(criterion(partitions))[
+    randomization = (
+        np.random.randn(len(partitions)) * 1e-6
+        if randomize
+        else np.zeros(len(partitions))
+    )
+    optimal_partition_index = np.argsort(criterion(partitions) + randomization)[
         -1
     ]  # optimal_partition_index = np.argmax(criterion(partitions))
 
@@ -157,11 +163,22 @@ def show_results(players: list | pd.Series, optimal_teams: dict | pd.Series) -> 
     df["team"] = df["team"].map({True: "A", False: "B"})
     df.sort_values(["team", "mean"], ascending=False, inplace=True)
 
-    teamA = df[df["team"] == "A"].index.values
-    teamB = df[df["team"] == "B"].index.values
+    teamA = df[df["team"] == "A"].index
+    teamB = df[df["team"] == "B"].index
 
-    print("Team A: ", teamA)
-    print("Team B: ", teamB)
+    teams = [teamA, teamB]
+    random.shuffle(teams)
+
+    separator = ", "
+    teams_strings = [t.str.cat(sep=separator) for t in teams]
+
+    print("\n```")
+    print(f"Bianchi: {teams_strings[0]}")
+    print(f"Neri:    {teams_strings[1]}")
+    print("```\n")
+
+    print(f"Mean Bianchi: ", df.loc[teams[0]]["mean"].mean())
+    print(f"Mean Neri: ", df.loc[teams[1]]["mean"].mean())
 
 
 def run(players_file: str, criterion_name: str):

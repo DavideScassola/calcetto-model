@@ -1,6 +1,5 @@
 # Initialisation
 import json
-import os
 
 import pandas as pd
 import requests
@@ -49,9 +48,11 @@ def notion_json_to_df(d: dict) -> pd.DataFrame:
             "Gol A": p["Gol A"]["number"],
             "Gol B": p["Gol B"]["number"],
             "risultato": p["risultato"]["select"]["name"],
-            "note": p["note"]["rich_text"][0]["plain_text"]
-            if len(p["note"]["rich_text"]) > 0
-            else "",
+            "note": (
+                p["note"]["rich_text"][0]["plain_text"]
+                if len(p["note"]["rich_text"]) > 0
+                else ""
+            ),
         }
 
     df = pd.DataFrame([property_to_entry(p["properties"]) for p in d["results"]])
