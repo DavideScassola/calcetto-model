@@ -146,44 +146,6 @@ def compute_win_probability_matrix(posterior_samples):
     return win_prob_samples.mean(dim=0)
 
 
-def select_mle_sample(model, data, posterior_samples):
-    """
-    Given a model, data, and a set of posterior samples, returns the sample with the highest log-likelihood.
-
-    Args:
-    - model: The probabilistic model.
-    - data: The observed data.
-    - posterior_samples: A dictionary of posterior samples.
-
-    Returns:
-    - The sample with the highest log-likelihood.
-    """
-    num_samples = next(iter(posterior_samples.values())).shape[0]
-
-    # Use Predictive to compute log-likelihoods for all samples
-    predictive = Predictive(model, posterior_samples, return_sites=["_RETURN"])
-    traces = predictive.get_vectorized_trace(data)
-
-    log_likelihoods = torch.zeros(num_samples)
-    for i in range(num_samples):
-        trace = traces[i]
-        trace.compute_log_prob()
-        log_likelihoods[i] = sum(
-            site["log_prob"].sum()
-            for site in trace.nodes.values()
-            if site["type"] == "sample"
-        )
-
-    # Get the sample with the highest log-likelihood
-    max_log_likelihood_index = torch.argmax(log_likelihoods)
-    mle_sample = {
-        name: posterior_samples[name][max_log_likelihood_index]
-        for name in posterior_samples
-    }
-
-    return mle_sample
-
-
 if __name__ == "__main__":
     dfs = load_database("pong/pingpong.db")
     names, games = get_players_and_games(dfs)
